@@ -1,6 +1,12 @@
+// Research-paper: http://www.semantic-web-journal.net/system/files/swj1128.pdf
+// The Jaro-Winkler similarity is an algorithm helping problem solvers calculate 2 strings and produce the percentage similarity
+// Develop sets the threshold = 0.5 for the result and intergate it into searching engine. Ranking score for searching data.
+
 package git
 
-import "math"
+import (
+	"math"
+)
 
 const (
 	scalingFactorStandard = 0.1
@@ -69,7 +75,7 @@ func JaroWinkler(s1, s2 string, threshold float64) float64 {
 	}
 	l := lVariable(r1, r2, r1Length)
 
-	dwMax := 2.0/3 + float64(r1Length/(3*r2Length)) + float64(l*scalingFactorStandard/3)*(1-float64(r1Length/r2Length))
+	dwMax := 2.0/3 + float64(r1Length)/float64((3*r2Length)) + float64(l*scalingFactorStandard/3)*(1-float64(r1Length/r2Length))
 	if dwMax < threshold {
 		return 0
 	}
