@@ -30,4 +30,4 @@ Jaro-Winkler optimal formula
 
 ## Dicussion
 * Can be applied into search engine and calculate the percentage for input search box text and field value in every record
-* Improving the Runtime of Bounded Jaro-Winkle based on length-based filter [paper](read_pic/om2014_Tpaper4.pdf)
+* Improving the Runtime of Bounded Jaro-Winkler based on length-based filter ([paper](read_pic/om2014_Tpaper4.pdf))
