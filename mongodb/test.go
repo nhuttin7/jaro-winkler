@@ -16,30 +16,52 @@ import (
 )
 
 type MongoFields struct {
-	campaignID        string `json:"campaign_id"`
-	transactionRemark string `json:"transaction_remark"`
+	CampaignID        string `json:"campaign_id" bson:"campaign_id"`
+	TransactionRemark string `json:"transaction_remark" bson:"transaction_remark"`
 }
 
-func SortMapByValue(m map[MongoFields]float64) []MongoFields {
+func SortMapByValue(mKey map[MongoFields]int, m map[MongoFields]float64) []MongoFields {
 	type kv struct {
 		Key   MongoFields
 		Value float64
 	}
 
 	var ss []kv
+	ssKey := make(map[int]MongoFields, len(mKey))
 	for k, v := range m {
+		ssKey[mKey[k]] = k
 		ss = append(ss, kv{k, v})
 	}
 
 	sort.Slice(ss, func(i, j int) bool {
-		return ss[i].Value <= ss[j].Value
+		if ss[i].Value == ss[j].Value {
+			if ss[i].Key.TransactionRemark < ss[j].Key.TransactionRemark {
+				return true
+			}
+		}
+		return ss[i].Value > ss[j].Value
 	})
 
 	var result []MongoFields
 	for _, kv := range ss {
+		if len(result) >= 5 {
+			break
+		}
 		result = append(result, kv.Key)
+		delete(ssKey, mKey[kv.Key])
+		delete(mKey, kv.Key)
 	}
-	return result
+	var rest []MongoFields
+	var empty MongoFields
+	for i := 0; i < len(ss); i++ {
+		if ssKey[i] == empty {
+			continue
+		}
+		rest = append(rest, ssKey[i])
+	}
+
+	rest = append(result, rest...)
+	return rest
 }
 
 func main() {
@@ -54,33 +76,26 @@ func main() {
 	}
 
 	// Access a MongoDB collection through a database
-	col := client.Database("perform_database").Collection("perform")
+	col := client.Database("ProcURL").Collection("big")
 
 	filter := bson.M{}
-	filter["transaction_remark"] = primitive.Regex{Pattern: "0", Options: "i"}
-	t1 := time.Now()
+	filter["transaction_remark"] = primitive.Regex{Pattern: "1", Options: "i"}
 
-	cursor, _ := col.Find(context.Background(), filter, &options.FindOptions{})
-	fmt.Println("find:", time.Now().Sub(t1).Seconds())
-	var restModels []MongoFields
+	op := options.FindOptions{}
+	op.SetSort(bson.M{"campaign_id": -1})
+
+	cursor, _ := col.Find(context.Background(), filter, &op)
+	bestKey := make(map[MongoFields]int)
 	bestResult := make(map[MongoFields]float64)
+	t1 := time.Now()
+	var key int
 	for cursor.Next(context.Background()) {
 		var model MongoFields
 		cursor.Decode(&model)
-
-		if p := JaroWinkler(model.transactionRemark, "O", 0.7); p > 0.7 {
-			bestResult[model] = p
-		} else {
-			restModels = append(restModels, model)
-		}
+		bestResult[model] = JaroWinkler(model.TransactionRemark, "1", 0.7)
+		bestKey[model] = key
+		key++
 	}
-	fmt.Println("after cursor:", time.Now().Sub(t1).Seconds())
-	a := SortMapByValue(bestResult)
-	for _, i := range a {
-		restModels = append([]MongoFields{i}, restModels...)
-	}
-	fmt.Println("after sorting:", time.Now().Sub(t1).Seconds())
+	SortMapByValue(bestKey, bestResult)
 	fmt.Println("total:", time.Now().Sub(t1).Seconds())
-	fmt.Println(len(restModels))
-
 }
